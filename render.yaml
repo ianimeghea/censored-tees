@@ -2,21 +2,19 @@ services:
   - type: web
     name: censored-tees
     runtime: python
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 2 --timeout 60 --access-logfile - --error-logfile -
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 90 --access-logfile - --error-logfile -
     healthCheckPath: /healthz
     autoDeploy: true
-    disk:
-      name: store-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.5
+      # SQLite lives in /tmp on free plan (no persistent disk).
+      # Order log resets on restart/deploy. Stripe Dashboard is source of truth for payments.
       - key: DB_PATH
-        value: /var/data/store.db
+        value: /tmp/store.db
       - key: FLASK_SECRET_KEY
         generateValue: true
       - key: PRINTIFY_API_TOKEN

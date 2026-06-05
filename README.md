@@ -83,5 +83,13 @@ This repo includes `render.yaml`, a `Procfile`, and `runtime.txt` — a one-clic
 
 - Pricing: Stripe charges the customer the same price as your Printify variant cost. Mark up your variant prices in Printify to keep margin.
 - Order approval: by default Printify auto-approves orders within 24h. Set your shop's order approval to **Manual** in the Printify dashboard if you want to review each one.
-- Cold starts: Render's free tier sleeps after 15 min idle. Starter ($7/mo) keeps it warm.
 - Webhook retries: Stripe retries failed webhooks for up to 3 days, so transient errors recover automatically.
+
+### Free plan trade-offs
+
+This is configured for Render's free tier. Two things to know:
+
+- **Cold starts**: service sleeps after 15 min idle. First request after sleep takes ~30s to wake. Stripe webhooks during a wake may time out — but Stripe retries for 3 days so orders still get submitted to Printify, just with a delay.
+- **Ephemeral DB**: SQLite lives in `/tmp/store.db` and resets on every deploy/restart. The admin order log only shows recent orders. **Stripe Dashboard is your authoritative payment record** — go to https://dashboard.stripe.com/payments to see all-time orders.
+
+To upgrade to always-on + persistent disk later: change `plan: free` → `plan: starter` in `render.yaml`, add the disk block back (see git history), and change `DB_PATH` to `/var/data/store.db`. Costs $7/mo.

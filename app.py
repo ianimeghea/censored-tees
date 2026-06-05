@@ -45,6 +45,7 @@ if not app.debug and os.environ.get("FLASK_ENV") != "development":
 client = PrintifyClient()
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_IS_TEST_MODE = stripe.api_key.startswith("sk_test_")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
@@ -176,6 +177,7 @@ def inject_globals():
         "cart_count": sum(item.get("quantity", 0) for item in cart()),
         "shop_configured": client.is_configured,
         "now_year": datetime.utcnow().year,
+        "stripe_test_mode": STRIPE_IS_TEST_MODE,
     }
 
 
@@ -434,6 +436,20 @@ def finalize_order(stripe_session_id):
         if existing and existing["status"] == "submitted" and existing["printify_order_id"]:
             return ({"id": existing["printify_order_id"]}, "submitted")
         return (None, (existing or {}).get("status", "missing"))
+
+    # Safety: never submit real fulfillment orders when Stripe is in test mode.
+    # Otherwise anyone with a test card (e.g. 4242 4242 4242 4242) could trigger
+    # a real Printify order that bills the store owner.
+    if STRIPE_IS_TEST_MODE:
+        storage.mark_failed(
+            stripe_session_id,
+            "Skipped fulfillment: Stripe test mode is active. Switch to live keys to send real orders.",
+        )
+        app.logger.warning(
+            "Skipping Printify submission for %s — Stripe in test mode.",
+            stripe_session_id,
+        )
+        return (None, "test-mode-skipped")
 
     try:
         order = client.submit_order(payload)

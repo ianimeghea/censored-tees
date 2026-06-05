@@ -30,6 +30,9 @@ def _connect():
 
 
 def init_db():
+    parent = os.path.dirname(os.path.abspath(DB_PATH))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     with _connect() as conn:
         conn.executescript(SCHEMA)
 

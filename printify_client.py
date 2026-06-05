@@ -74,3 +74,16 @@ class PrintifyClient:
 
     def submit_order(self, payload):
         return self._request("POST", f"/shops/{self.shop_id}/orders.json", json=payload)
+
+    def publishing_failed(self, product_id, reason="Unpublished by store admin"):
+        return self._request(
+            "POST",
+            f"/shops/{self.shop_id}/products/{product_id}/publishing_failed.json",
+            json={"reason": reason},
+        )
+
+    def delete_product(self, product_id):
+        return self._request(
+            "DELETE",
+            f"/shops/{self.shop_id}/products/{product_id}.json",
+        )

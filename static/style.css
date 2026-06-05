@@ -930,3 +930,17 @@ code {
     line-height: 1.55;
     margin: 0;
 }
+
+/* ===== Test mode banner ===== */
+.test-banner {
+    background: #ff3b3b;
+    color: #fff;
+    text-align: center;
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--ink);
+}

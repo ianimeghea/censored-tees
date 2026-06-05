@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% if stripe_test_mode %}
+<div class="test-banner">TEST MODE — payments use Stripe test cards. No real orders will be fulfilled.</div>
+{% endif %}
 <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
         <span>FREE EXPRESSION</span><span>·</span>
