@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}CART{% endblock %}
+{% block content %}
+<h1 class="page-title">YOUR CART</h1>
+
+{% if not items %}
+    <div class="empty">
+        <p class="redacted-line">EMPTY</p>
+        <p class="muted">Nothing's been censored yet.</p>
+        <a class="btn btn-primary" href="{{ url_for('index') }}">START SHOPPING</a>
+    </div>
+{% else %}
+    <div class="cart-grid">
+        <div class="cart-items">
+            {% for item in items %}
+                <div class="cart-item">
+                    <div class="cart-item-image">
+                        {% if item.image %}<img src="{{ item.image }}" alt="">{% endif %}
+                    </div>
+                    <div class="cart-item-body">
+                        <h3>{{ item.product.title }}</h3>
+                        <p class="muted small">{{ item.variant.title }}</p>
+                        <p class="price">${{ item.line_total | money }}</p>
+
+                        <div class="cart-actions">
+                            <form action="{{ url_for('cart_update') }}" method="post" class="qty-form">
+                                <input type="hidden" name="key" value="{{ item.key }}">
+                                <label>
+                                    QTY
+                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="99">
+                                </label>
+                                <button type="submit" class="btn btn-secondary btn-sm">UPDATE</button>
+                            </form>
+
+                            <form action="{{ url_for('cart_remove') }}" method="post">
+                                <input type="hidden" name="key" value="{{ item.key }}">
+                                <button type="submit" class="link-button">REMOVE</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <aside class="summary">
+            <h2>SUMMARY</h2>
+            <div class="summary-row">
+                <span>Subtotal</span>
+                <span>${{ subtotal | money }}</span>
+            </div>
+            <p class="muted small">Shipping and taxes calculated at checkout.</p>
+            <a class="btn btn-primary btn-block" href="{{ url_for('checkout') }}">CHECKOUT →</a>
+        </aside>
+    </div>
+{% endif %}
+{% endblock %}

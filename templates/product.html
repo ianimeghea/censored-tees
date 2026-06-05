@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title | upper }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('index') }}" class="back-link">← BACK</a>
+
+<article class="product">
+    <div class="product-gallery">
+        <div class="primary-frame">
+            {% if first_image %}
+                <img id="primary-image" src="{{ first_image }}" alt="{{ product.title }}">
+            {% endif %}
+        </div>
+        {% if product.images and product.images|length > 1 %}
+            <div class="thumbs">
+                {% for image in product.images[:6] %}
+                    <button type="button" class="thumb" data-src="{{ image.src }}">
+                        <img src="{{ image.src }}" alt="">
+                    </button>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="product-info">
+        <span class="eyebrow">CENSORED // DROP</span>
+        <h1>{{ product.title }}</h1>
+        <p class="price" id="price">${{ default_variant.price | money }}</p>
+
+        <form action="{{ url_for('cart_add') }}" method="post" class="purchase-form">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+
+            <label for="variant_id">VARIANT</label>
+            <select name="variant_id" id="variant_id" required>
+                {% for variant in variants %}
+                    <option value="{{ variant.id }}"
+                        data-price="{{ variant.price }}"
+                        {% if variant.id == default_variant.id %}selected{% endif %}>
+                        {{ variant.title }} — ${{ variant.price | money }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="quantity">QUANTITY</label>
+            <input type="number" name="quantity" id="quantity" value="1" min="1" max="99">
+
+            <button type="submit" class="btn btn-primary btn-block">ADD TO CART</button>
+        </form>
+
+        {% if product.description %}
+            <div class="description">
+                {{ product.description | safe }}
+            </div>
+        {% endif %}
+    </div>
+</article>
+
+<script>
+    (function () {
+        const select = document.getElementById('variant_id');
+        const price = document.getElementById('price');
+        if (select && price) {
+            select.addEventListener('change', function () {
+                const opt = select.options[select.selectedIndex];
+                const cents = parseInt(opt.dataset.price, 10) || 0;
+                price.textContent = '$' + (cents / 100).toFixed(2);
+            });
+        }
+
+        const primary = document.getElementById('primary-image');
+        document.querySelectorAll('.thumb').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (primary) primary.src = btn.dataset.src;
+            });
+        });
+    })();
+</script>
+{% endblock %}

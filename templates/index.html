@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}SHOP{% endblock %}
+{% block content %}
+<section class="hero">
+    <h1>
+        <span class="redacted">CENSORED</span>
+        <span class="hero-line">tees for the unfiltered.</span>
+    </h1>
+    <p>Designs the algorithm wishes you wouldn't wear.</p>
+</section>
+
+{% if products %}
+<section class="grid">
+    {% for product in products %}
+        <a class="card" href="{{ url_for('product_detail', product_id=product.id) }}">
+            <div class="card-media">
+                {% if product.image %}
+                    <img src="{{ product.image }}" alt="{{ product.title }}" loading="lazy">
+                {% endif %}
+                <span class="card-tag">DROP {{ '%02d' % loop.index }}</span>
+            </div>
+            <div class="card-body">
+                <h2>{{ product.title }}</h2>
+                <p class="price">
+                    {% if product.price_from == product.price_to %}
+                        ${{ product.price_from | money }}
+                    {% else %}
+                        FROM ${{ product.price_from | money }}
+                    {% endif %}
+                </p>
+            </div>
+        </a>
+    {% endfor %}
+</section>
+
+{% if last_page > 1 %}
+<nav class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('index', page=page - 1) }}">← PREV</a>
+    {% endif %}
+    <span>{{ page }} / {{ last_page }}</span>
+    {% if page < last_page %}
+        <a href="{{ url_for('index', page=page + 1) }}">NEXT →</a>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<section class="empty">
+    <h2>No drops yet.</h2>
+    <p>Check back soon.</p>
+</section>
+{% endif %}
+{% endblock %}

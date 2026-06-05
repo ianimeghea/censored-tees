@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}SETUP{% endblock %}
+{% block content %}
+<section class="setup">
+    <h1>Setup required</h1>
+    <p>Add your store credentials to <code>.env</code>, then restart the server.</p>
+    <ol>
+        <li>Set <code>API_TOKEN</code> in <code>.env</code>.</li>
+        <li>Set <code>SHOP_ID</code> in <code>.env</code>.</li>
+        <li>Restart.</li>
+    </ol>
+</section>
+{% endblock %}

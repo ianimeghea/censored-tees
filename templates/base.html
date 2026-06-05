@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}CENSORED{% endblock %} — CENSORED TEES</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+        <span>FREE EXPRESSION</span><span>·</span>
+        <span>WEAR THE TRUTH</span><span>·</span>
+        <span>NOTHING TO HIDE</span><span>·</span>
+        <span>CENSORED TEES</span><span>·</span>
+        <span>FREE EXPRESSION</span><span>·</span>
+        <span>WEAR THE TRUTH</span><span>·</span>
+        <span>NOTHING TO HIDE</span><span>·</span>
+        <span>CENSORED TEES</span><span>·</span>
+    </div>
+</div>
+
+<header class="site-header">
+    <div class="container header-row">
+        <a href="{{ url_for('index') }}" class="brand">
+            <span class="brand-block">CENSORED</span>
+            <span class="brand-mark">TEES</span>
+        </a>
+        <nav class="nav">
+            <a href="{{ url_for('index') }}">SHOP</a>
+            <a href="{{ url_for('cart_view') }}" class="cart-link">
+                <span>CART</span>
+                <span class="badge">{{ cart_count or 0 }}</span>
+            </a>
+        </nav>
+    </div>
+</header>
+
+<main class="main">
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-row">
+        <div class="footer-brand">
+            <span class="brand-block">CENSORED</span>
+            <span class="brand-mark">TEES</span>
+        </div>
+        <p class="footer-tag">Speak loud. Wear louder.</p>
+        <p class="footer-meta">© {{ now_year }} CENSORED TEES. All rights reserved.</p>
+    </div>
+</footer>
+</body>
+</html>

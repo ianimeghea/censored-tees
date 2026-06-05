@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}ADMIN — ORDER LOG{% endblock %}
+{% block content %}
+<h1 class="page-title">ORDER LOG</h1>
+
+<div class="admin-stats">
+    <div class="stat"><span class="stat-num">{{ totals.submitted }}</span><span class="stat-label">SUBMITTED</span></div>
+    <div class="stat"><span class="stat-num">{{ totals.pending }}</span><span class="stat-label">PENDING</span></div>
+    <div class="stat"><span class="stat-num">{{ totals.submitting }}</span><span class="stat-label">SUBMITTING</span></div>
+    <div class="stat stat-warn"><span class="stat-num">{{ totals.failed }}</span><span class="stat-label">FAILED</span></div>
+</div>
+
+{% if not orders %}
+    <div class="empty">
+        <p class="muted">No orders yet.</p>
+    </div>
+{% else %}
+<div class="admin-table-wrap">
+    <table class="admin-table">
+        <thead>
+            <tr>
+                <th>WHEN</th>
+                <th>LABEL</th>
+                <th>CUSTOMER</th>
+                <th>ITEMS</th>
+                <th>STATUS</th>
+                <th>FULFILLMENT ID</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td class="mono small">{{ o.created_at }}</td>
+                <td class="mono">{{ o.label or '—' }}</td>
+                <td>
+                    <div>{{ o.customer or '—' }}</div>
+                    <div class="muted small">{{ o.email }} · {{ o.country }}</div>
+                </td>
+                <td class="mono">{{ o.item_count }}</td>
+                <td><span class="status-pill status-{{ o.status }}">{{ o.status | upper }}</span></td>
+                <td class="mono small">{{ o.printify_order_id or '—' }}</td>
+                <td><a class="btn-link" href="{{ url_for('admin_order_detail', stripe_session_id=o.stripe_session_id) }}">VIEW →</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

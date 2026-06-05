@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}ADMIN — ORDER {{ row.stripe_session_id[:14] }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('admin_orders') }}">← BACK TO LOG</a>
+
+<h1 class="page-title">ORDER DETAIL</h1>
+
+<div class="admin-detail">
+    <section class="detail-card">
+        <h2>STATUS</h2>
+        <div class="kv">
+            <div class="kv-row"><span>Status</span><span class="status-pill status-{{ row.status }}">{{ row.status | upper }}</span></div>
+            <div class="kv-row"><span>Stripe session</span><span class="mono small">{{ row.stripe_session_id }}</span></div>
+            <div class="kv-row"><span>Fulfillment order ID</span><span class="mono small">{{ row.printify_order_id or '—' }}</span></div>
+            <div class="kv-row"><span>External ID</span><span class="mono small">{{ payload.external_id or '—' }}</span></div>
+            <div class="kv-row"><span>Label</span><span class="mono">{{ payload.label or '—' }}</span></div>
+            <div class="kv-row"><span>Created</span><span class="mono small">{{ row.created_at }}</span></div>
+            <div class="kv-row"><span>Updated</span><span class="mono small">{{ row.updated_at }}</span></div>
+            {% if row.error %}
+                <div class="kv-row error-row">
+                    <span>Error</span>
+                    <span class="mono small">{{ row.error }}</span>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if row.status in ('failed', 'submitting') %}
+            <form action="{{ url_for('admin_order_retry', stripe_session_id=row.stripe_session_id) }}" method="post" class="retry-form">
+                <button type="submit" class="btn btn-primary">RETRY SUBMISSION</button>
+                <p class="muted small">This re-runs the fulfillment submission. Safe to retry — duplicates are prevented.</p>
+            </form>
+        {% endif %}
+    </section>
+
+    {% if payload.address_to %}
+    <section class="detail-card">
+        <h2>SHIP TO</h2>
+        <div class="kv">
+            <div class="kv-row"><span>Name</span><span>{{ payload.address_to.first_name }} {{ payload.address_to.last_name }}</span></div>
+            <div class="kv-row"><span>Email</span><span class="mono small">{{ payload.address_to.email }}</span></div>
+            <div class="kv-row"><span>Phone</span><span class="mono small">{{ payload.address_to.phone or '—' }}</span></div>
+            <div class="kv-row"><span>Address</span><span>{{ payload.address_to.address1 }}{% if payload.address_to.address2 %}, {{ payload.address_to.address2 }}{% endif %}</span></div>
+            <div class="kv-row"><span>City</span><span>{{ payload.address_to.city }}{% if payload.address_to.region %}, {{ payload.address_to.region }}{% endif %} {{ payload.address_to.zip }}</span></div>
+            <div class="kv-row"><span>Country</span><span class="mono">{{ payload.address_to.country }}</span></div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if payload.line_items %}
+    <section class="detail-card">
+        <h2>LINE ITEMS</h2>
+        <table class="admin-table">
+            <thead>
+                <tr><th>PRODUCT ID</th><th>VARIANT</th><th>QTY</th></tr>
+            </thead>
+            <tbody>
+                {% for li in payload.line_items %}
+                <tr>
+                    <td class="mono small">{{ li.product_id }}</td>
+                    <td class="mono small">{{ li.variant_id }}</td>
+                    <td class="mono">{{ li.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    <section class="detail-card">
+        <h2>RAW PAYLOAD</h2>
+        <pre class="payload-pre">{{ payload_pretty }}</pre>
+    </section>
+</div>
+{% endblock %}

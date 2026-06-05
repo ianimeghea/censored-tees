@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}ERROR{% endblock %}
+{% block content %}
+<section class="setup">
+    <h1>Something went wrong</h1>
+    <p class="muted">{{ message }}</p>
+    <a class="btn btn-primary" href="{{ url_for('index') }}">Try again</a>
+</section>
+{% endblock %}
