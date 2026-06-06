@@ -24,6 +24,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import storage
 from printify_client import PrintifyClient, PrintifyError
+from translations import TRANSLATIONS
 
 load_dotenv()
 
@@ -105,6 +106,23 @@ def cents_to_str(cents):
 app.jinja_env.filters["money"] = cents_to_str
 
 
+def get_lang():
+    if "lang" in session:
+        return session["lang"]
+    return request.accept_languages.best_match(["ro", "en"], default="en")
+
+
+def _(text):
+    lang = get_lang()
+    if lang == "en":
+        return text
+    return TRANSLATIONS.get(lang, {}).get(text, text)
+
+
+app.jinja_env.globals["_"] = _
+app.jinja_env.globals["get_lang"] = get_lang
+
+
 def first_image(product):
     images = product.get("images") or []
     default = next((img for img in images if img.get("is_default")), None)
@@ -178,6 +196,7 @@ def inject_globals():
         "shop_configured": client.is_configured,
         "now_year": datetime.utcnow().year,
         "stripe_test_mode": STRIPE_IS_TEST_MODE,
+        "lang": get_lang(),
     }
 
 
@@ -189,6 +208,13 @@ def handle_printify_error(error):
 @app.route("/healthz")
 def healthz():
     return ("ok", 200, {"Content-Type": "text/plain"})
+
+
+@app.route("/lang/<lang>")
+def set_language(lang):
+    if lang in ("ro", "en"):
+        session["lang"] = lang
+    return redirect(request.referrer or url_for("index"))
 
 
 @app.route("/")

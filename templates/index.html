@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}SHOP{% endblock %}
+{% block title %}{{ _("SHOP") }}{% endblock %}
 {% block content %}
 <section class="hero">
     <h1>
         <span class="redacted">CENSORED</span>
-        <span class="hero-line">tees for the unfiltered.</span>
+        <span class="hero-line">{{ _("tees for the unfiltered.") }}</span>
     </h1>
-    <p>Designs the algorithm wishes you wouldn't wear.</p>
+    <p>{{ _("Designs the algorithm wishes you wouldn't wear.") }}</p>
 </section>
 
 {% if products %}
@@ -17,7 +17,7 @@
                 {% if product.image %}
                     <img src="{{ product.image }}" alt="{{ product.title }}" loading="lazy">
                 {% endif %}
-                <span class="card-tag">DROP {{ '%02d' % loop.index }}</span>
+                <span class="card-tag">{{ _("DROP") }} {{ '%02d' % loop.index }}</span>
             </div>
             <div class="card-body">
                 <h2>{{ product.title }}</h2>
@@ -25,7 +25,7 @@
                     {% if product.price_from == product.price_to %}
                         ${{ product.price_from | money }}
                     {% else %}
-                        FROM ${{ product.price_from | money }}
+                        {{ _("FROM") }} ${{ product.price_from | money }}
                     {% endif %}
                 </p>
             </div>
@@ -36,19 +36,19 @@
 {% if last_page > 1 %}
 <nav class="pagination">
     {% if page > 1 %}
-        <a href="{{ url_for('index', page=page - 1) }}">← PREV</a>
+        <a href="{{ url_for('index', page=page - 1) }}">{{ _("← PREV") }}</a>
     {% endif %}
     <span>{{ page }} / {{ last_page }}</span>
     {% if page < last_page %}
-        <a href="{{ url_for('index', page=page + 1) }}">NEXT →</a>
+        <a href="{{ url_for('index', page=page + 1) }}">{{ _("NEXT →") }}</a>
     {% endif %}
 </nav>
 {% endif %}
 
 {% else %}
 <section class="empty">
-    <h2>No drops yet.</h2>
-    <p>Check back soon.</p>
+    <h2>{{ _("No drops yet.") }}</h2>
+    <p>{{ _("Check back soon.") }}</p>
 </section>
 {% endif %}
 {% endblock %}

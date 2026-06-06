@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% block title %}ORDER CONFIRMED{% endblock %}
+{% block title %}{{ _("ORDER CONFIRMED") }}{% endblock %}
 {% block content %}
 <section class="confirmation">
     <div class="confirm-mark">
-        <span class="redacted">CONFIRMED</span>
+        <span class="redacted">{{ _("CONFIRMED") }}</span>
     </div>
-    <h1>Payment received.</h1>
+    <h1>{{ _("Payment received.") }}</h1>
 
     {% if fulfillment_status == 'submitted' %}
-        <p class="muted">Your order is being put together. You'll get an email when it ships.</p>
+        <p class="muted">{{ _("Your order is being put together. You'll get an email when it ships.") }}</p>
     {% elif fulfillment_status == 'failed' %}
-        <p class="muted">Your payment went through, but we hit a snag sending the order to fulfillment. We'll resolve it manually and email you. No further action needed.</p>
+        <p class="muted">{{ _("Your payment went through, but we hit a snag sending the order to fulfillment. We'll resolve it manually and email you. No further action needed.") }}</p>
     {% else %}
-        <p class="muted">Your order is being processed. You'll get a confirmation email shortly.</p>
+        <p class="muted">{{ _("Your order is being processed. You'll get a confirmation email shortly.") }}</p>
     {% endif %}
 
     <div class="summary confirm-summary">
-        <div class="summary-row"><span>Order #</span><span>{{ order.id if order is mapping else order }}</span></div>
-        <div class="summary-row"><span>Subtotal</span><span>${{ subtotal | money }}</span></div>
-        <div class="summary-row"><span>Shipping</span><span>${{ shipping_cost | money }}</span></div>
-        <div class="summary-row total"><span>Total</span><span>${{ (subtotal + shipping_cost) | money }}</span></div>
+        <div class="summary-row"><span>{{ _("Order #") }}</span><span>{{ order.id if order is mapping else order }}</span></div>
+        <div class="summary-row"><span>{{ _("Subtotal") }}</span><span>${{ subtotal | money }}</span></div>
+        <div class="summary-row"><span>{{ _("Shipping") }}</span><span>${{ shipping_cost | money }}</span></div>
+        <div class="summary-row total"><span>{{ _("Total") }}</span><span>${{ (subtotal + shipping_cost) | money }}</span></div>
     </div>
 
-    <a href="{{ url_for('index') }}" class="btn btn-primary">Keep shopping</a>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">{{ _("Keep shopping") }}</a>
 </section>
 {% endblock %}

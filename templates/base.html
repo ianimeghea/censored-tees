@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,17 +11,17 @@
 </head>
 <body>
 {% if stripe_test_mode %}
-<div class="test-banner">TEST MODE — payments use Stripe test cards. No real orders will be fulfilled.</div>
+<div class="test-banner">{{ _("TEST MODE — payments use Stripe test cards. No real orders will be fulfilled.") }}</div>
 {% endif %}
 <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
-        <span>FREE EXPRESSION</span><span>·</span>
-        <span>WEAR THE TRUTH</span><span>·</span>
-        <span>NOTHING TO HIDE</span><span>·</span>
+        <span>{{ _("FREE EXPRESSION") }}</span><span>·</span>
+        <span>{{ _("WEAR THE TRUTH") }}</span><span>·</span>
+        <span>{{ _("NOTHING TO HIDE") }}</span><span>·</span>
         <span>CENSORED TEES</span><span>·</span>
-        <span>FREE EXPRESSION</span><span>·</span>
-        <span>WEAR THE TRUTH</span><span>·</span>
-        <span>NOTHING TO HIDE</span><span>·</span>
+        <span>{{ _("FREE EXPRESSION") }}</span><span>·</span>
+        <span>{{ _("WEAR THE TRUTH") }}</span><span>·</span>
+        <span>{{ _("NOTHING TO HIDE") }}</span><span>·</span>
         <span>CENSORED TEES</span><span>·</span>
     </div>
 </div>
@@ -33,11 +33,16 @@
             <span class="brand-mark">TEES</span>
         </a>
         <nav class="nav">
-            <a href="{{ url_for('index') }}">SHOP</a>
+            <a href="{{ url_for('index') }}">{{ _("SHOP") }}</a>
             <a href="{{ url_for('cart_view') }}" class="cart-link">
-                <span>CART</span>
+                <span>{{ _("CART") }}</span>
                 <span class="badge">{{ cart_count or 0 }}</span>
             </a>
+            {% if lang == 'ro' %}
+                <a href="{{ url_for('set_language', lang='en') }}" class="lang-toggle" title="Switch to English">EN</a>
+            {% else %}
+                <a href="{{ url_for('set_language', lang='ro') }}" class="lang-toggle" title="Schimbă în română">RO</a>
+            {% endif %}
         </nav>
     </div>
 </header>
@@ -48,7 +53,7 @@
             {% if messages %}
                 <div class="flashes">
                     {% for category, message in messages %}
-                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                        <div class="flash flash-{{ category }}">{{ _(message) }}</div>
                     {% endfor %}
                 </div>
             {% endif %}
@@ -63,8 +68,8 @@
             <span class="brand-block">CENSORED</span>
             <span class="brand-mark">TEES</span>
         </div>
-        <p class="footer-tag">Speak loud. Wear louder.</p>
-        <p class="footer-meta">© {{ now_year }} CENSORED TEES. All rights reserved.</p>
+        <p class="footer-tag">{{ _("Speak loud. Wear louder.") }}</p>
+        <p class="footer-meta">© {{ now_year }} CENSORED TEES. {{ _("All rights reserved.") }}</p>
     </div>
 </footer>
 </body>

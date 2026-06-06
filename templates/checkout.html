@@ -1,59 +1,59 @@
 {% extends "base.html" %}
-{% block title %}CHECKOUT{% endblock %}
+{% block title %}{{ _("CHECKOUT") }}{% endblock %}
 {% block content %}
-<h1 class="page-title">CHECKOUT</h1>
+<h1 class="page-title">{{ _("CHECKOUT") }}</h1>
 
 <div class="checkout-grid">
     <form method="post" class="checkout-form">
-        <h2>SHIPPING ADDRESS</h2>
+        <h2>{{ _("SHIPPING ADDRESS") }}</h2>
 
         <div class="row">
-            <label>First name
+            <label>{{ _("First name") }}
                 <input type="text" name="first_name" value="{{ form.get('first_name', '') }}" required>
             </label>
-            <label>Last name
+            <label>{{ _("Last name") }}
                 <input type="text" name="last_name" value="{{ form.get('last_name', '') }}" required>
             </label>
         </div>
 
-        <label>Email
+        <label>{{ _("Email") }}
             <input type="email" name="email" value="{{ form.get('email', '') }}" required>
         </label>
-        <label>Phone
+        <label>{{ _("Phone") }}
             <input type="tel" name="phone" value="{{ form.get('phone', '') }}">
         </label>
 
-        <label>Address
+        <label>{{ _("Address") }}
             <input type="text" name="address1" value="{{ form.get('address1', '') }}" required>
         </label>
-        <label>Apartment, suite, etc. (optional)
+        <label>{{ _("Apartment, suite, etc. (optional)") }}
             <input type="text" name="address2" value="{{ form.get('address2', '') }}">
         </label>
 
         <div class="row">
-            <label>City
+            <label>{{ _("City") }}
                 <input type="text" name="city" value="{{ form.get('city', '') }}" required>
             </label>
-            <label>State / Region
+            <label>{{ _("State / Region") }}
                 <input type="text" name="region" value="{{ form.get('region', '') }}">
             </label>
         </div>
 
         <div class="row">
-            <label>ZIP / Postal code
+            <label>{{ _("ZIP / Postal code") }}
                 <input type="text" name="zip" value="{{ form.get('zip', '') }}" required>
             </label>
-            <label>Country (ISO code)
+            <label>{{ _("Country (ISO code)") }}
                 <input type="text" name="country" value="{{ form.get('country', 'US') }}" maxlength="2" required>
             </label>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block">CONTINUE TO PAYMENT →</button>
-        <p class="muted small">Secure checkout. You'll receive a tracking email once your order ships.</p>
+        <button type="submit" class="btn btn-primary btn-block">{{ _("CONTINUE TO PAYMENT →") }}</button>
+        <p class="muted small">{{ _("Secure checkout. You'll receive a tracking email once your order ships.") }}</p>
     </form>
 
     <aside class="summary">
-        <h2>YOUR ORDER</h2>
+        <h2>{{ _("YOUR ORDER") }}</h2>
         {% for item in items %}
             <div class="summary-row">
                 <span>{{ item.product.title }} × {{ item.quantity }}</span>
@@ -62,20 +62,20 @@
         {% endfor %}
         <hr>
         <div class="summary-row">
-            <span>Subtotal</span>
+            <span>{{ _("Subtotal") }}</span>
             <span>${{ subtotal | money }}</span>
         </div>
         {% if shipping is not none %}
             <div class="summary-row">
-                <span>Shipping</span>
+                <span>{{ _("Shipping") }}</span>
                 <span>${{ shipping | money }}</span>
             </div>
             <div class="summary-row total">
-                <span>Total</span>
+                <span>{{ _("Total") }}</span>
                 <span>${{ (subtotal + shipping) | money }}</span>
             </div>
         {% else %}
-            <p class="muted small">Shipping calculated on the next step.</p>
+            <p class="muted small">{{ _("Shipping calculated on the next step.") }}</p>
         {% endif %}
     </aside>
 </div>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ product.title | upper }}{% endblock %}
 {% block content %}
-<a href="{{ url_for('index') }}" class="back-link">← BACK</a>
+<a href="{{ url_for('index') }}" class="back-link">{{ _("← BACK") }}</a>
 
 <article class="product">
     <div class="product-gallery">
@@ -22,14 +22,14 @@
     </div>
 
     <div class="product-info">
-        <span class="eyebrow">CENSORED // DROP</span>
+        <span class="eyebrow">{{ _("CENSORED // DROP") }}</span>
         <h1>{{ product.title }}</h1>
         <p class="price" id="price">${{ default_variant.price | money }}</p>
 
         <form action="{{ url_for('cart_add') }}" method="post" class="purchase-form">
             <input type="hidden" name="product_id" value="{{ product.id }}">
 
-            <label for="variant_id">VARIANT</label>
+            <label for="variant_id">{{ _("VARIANT") }}</label>
             <select name="variant_id" id="variant_id" required>
                 {% for variant in variants %}
                     <option value="{{ variant.id }}"
@@ -40,10 +40,10 @@
                 {% endfor %}
             </select>
 
-            <label for="quantity">QUANTITY</label>
+            <label for="quantity">{{ _("QUANTITY") }}</label>
             <input type="number" name="quantity" id="quantity" value="1" min="1" max="99">
 
-            <button type="submit" class="btn btn-primary btn-block">ADD TO CART</button>
+            <button type="submit" class="btn btn-primary btn-block">{{ _("ADD TO CART") }}</button>
         </form>
 
         {% if product.description %}

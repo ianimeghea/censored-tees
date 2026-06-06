@@ -116,6 +116,23 @@ img { max-width: 100%; display: block; }
     text-decoration: none;
     color: var(--muted);
 }
+.lang-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--ink);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    transition: background 0.15s, color 0.15s;
+}
+.lang-toggle:hover {
+    background: var(--ink);
+    color: var(--bg);
+    text-decoration: none;
+}
+
 .cart-link {
     display: inline-flex;
     align-items: center;
