@@ -14,7 +14,7 @@ TRANSLATIONS = {
             "MOD TEST — plățile folosesc carduri de test Stripe. Nu se vor onora comenzi reale.",
 
         # index.html
-        "tees for the unfiltered.": "tricouri pentru cei nefiltrați.",
+        "tees for the unfiltered.": "tricouri pentru cei fără filtru.",
         "Designs the algorithm wishes you wouldn't wear.":
             "Designuri pe care algoritmul speră să nu le porți.",
         "DROP": "EDIȚIE",

@@ -368,6 +368,7 @@ img { max-width: 100%; display: block; }
     grid-template-columns: 1.1fr 1fr;
     gap: 64px;
     align-items: start;
+    overflow: hidden;
 }
 @media (max-width: 880px) {
     .product { grid-template-columns: 1fr; gap: 32px; }
@@ -413,6 +414,7 @@ img { max-width: 100%; display: block; }
     letter-spacing: 0.25em;
     padding: 4px 10px;
     margin-bottom: 16px;
+    max-width: 100%;
 }
 .product-info h1 {
     font-size: clamp(32px, 4vw, 48px);
@@ -421,6 +423,14 @@ img { max-width: 100%; display: block; }
     letter-spacing: -0.02em;
     line-height: 1.05;
     text-transform: uppercase;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.product-info {
+    min-width: 0;
+}
+.product-gallery {
+    min-width: 0;
 }
 .product-info .price {
     font-family: 'JetBrains Mono', monospace;
@@ -438,6 +448,7 @@ img { max-width: 100%; display: block; }
     border: 2px solid var(--ink);
     background: var(--paper);
     margin-bottom: 32px;
+    overflow: hidden;
 }
 .purchase-form label {
     font-family: 'JetBrains Mono', monospace;
@@ -534,9 +545,44 @@ select {
     line-height: 1.65;
     border-top: 2px solid var(--ink);
     padding-top: 24px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 .description img { max-width: 100%; height: auto; }
 .description p:first-child { margin-top: 0; }
+
+.description table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.4;
+    margin: 16px 0;
+    min-width: 320px;
+}
+.description th,
+.description td {
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--line);
+    white-space: nowrap;
+}
+.description th {
+    background: var(--ink);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.description tr:nth-child(even) td {
+    background: var(--bg);
+}
+.description tr:hover td {
+    background: var(--line);
+}
 
 /* ===== Cart / Checkout ===== */
 .cart-grid, .checkout-grid {
