@@ -53,6 +53,15 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000").rstrip("/
 ADMIN_USER = os.environ.get("ADMIN_USER", "")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
+def _parse_id_list(val):
+    """Parse a comma-separated env var into a set of stripped, non-empty strings."""
+    if not val:
+        return set()
+    return {pid.strip() for pid in val.split(",") if pid.strip()}
+
+PRODUCTS_RO_ONLY = _parse_id_list(os.environ.get("PRODUCTS_RO_ONLY", ""))
+PRODUCTS_INT_ONLY = _parse_id_list(os.environ.get("PRODUCTS_INT_ONLY", ""))
+
 storage.init_db()
 
 
@@ -121,6 +130,23 @@ def _(text):
 
 app.jinja_env.globals["_"] = _
 app.jinja_env.globals["get_lang"] = get_lang
+
+
+def product_visible_for_region(product):
+    """Check if a product should be shown for the current region.
+
+    Configure via env vars (comma-separated Printify product IDs):
+      PRODUCTS_RO_ONLY  → only shown to Romanian visitors
+      PRODUCTS_INT_ONLY → only shown to international visitors
+    Products in neither list are shown to everyone.
+    """
+    pid = str(product.get("id", ""))
+    is_ro = get_lang() == "ro"
+    if pid in PRODUCTS_RO_ONLY:
+        return is_ro
+    if pid in PRODUCTS_INT_ONLY:
+        return not is_ro
+    return True
 
 
 def first_image(product):
@@ -228,6 +254,8 @@ def index():
     for raw in data.get("data", []):
         if not raw.get("visible", True):
             continue
+        if not product_visible_for_region(raw):
+            continue
         variants = enabled_variants(raw)
         if not variants:
             continue
@@ -252,6 +280,8 @@ def index():
 @app.route("/product/<product_id>")
 def product_detail(product_id):
     product = client.get_product(product_id)
+    if not product_visible_for_region(product):
+        abort(404)
     variants = enabled_variants(product)
     if not variants:
         abort(404)
