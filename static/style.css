@@ -18,6 +18,9 @@
 
 * { box-sizing: border-box; }
 
+html {
+    overflow-x: hidden;
+}
 html, body {
     margin: 0;
     padding: 0;
@@ -253,7 +256,7 @@ img { max-width: 100%; display: block; }
 /* ===== Grid / Cards ===== */
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: 24px;
 }
 
@@ -946,6 +949,109 @@ code {
     font-size: 12px;
     line-height: 1.55;
     margin: 0;
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 600px) {
+    .container {
+        padding: 0 16px;
+    }
+
+    .header-row {
+        height: 60px;
+    }
+    .brand {
+        font-size: 17px;
+    }
+    .brand-block {
+        padding: 4px 7px 3px;
+    }
+    .nav {
+        gap: 12px;
+        font-size: 11px;
+    }
+    .cart-link {
+        padding: 6px 10px;
+    }
+    .lang-toggle {
+        width: 28px;
+        height: 28px;
+        font-size: 10px;
+    }
+
+    .main {
+        padding: 32px 0 64px;
+    }
+
+    .hero {
+        padding: 12px 0 40px;
+        margin-bottom: 32px;
+    }
+    .hero p {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        word-break: break-word;
+    }
+
+    .page-title {
+        margin-bottom: 24px;
+    }
+
+    .grid {
+        gap: 16px;
+    }
+
+    .cart-item {
+        grid-template-columns: 80px 1fr;
+        gap: 14px;
+        padding: 14px;
+    }
+    .cart-item-body h3 {
+        font-size: 15px;
+    }
+
+    .summary {
+        position: static;
+        box-shadow: var(--shadow-hard);
+    }
+
+    .checkout-form {
+        padding: 20px 16px;
+    }
+
+    .confirmation {
+        margin: 24px auto;
+    }
+
+    .setup {
+        padding: 24px 20px;
+        margin: 24px auto;
+    }
+
+    .pagination {
+        gap: 16px;
+        margin-top: 32px;
+    }
+
+    .site-footer {
+        padding: 32px 0;
+    }
+
+    .empty {
+        padding: 64px 0;
+    }
+
+    .product {
+        gap: 24px;
+    }
+
+    .purchase-form {
+        padding: 16px;
+    }
+
+    .back-link {
+        margin-bottom: 20px;
+    }
 }
 
 /* ===== Test mode banner ===== */
