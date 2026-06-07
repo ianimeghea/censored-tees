@@ -88,6 +88,8 @@ TRANSLATIONS = {
         "Please fill in all required fields.": "Te rugăm să completezi toate câmpurile obligatorii.",
         "Something went wrong with the payment. Please try again.":
             "Ceva nu a mers bine cu plata. Te rugăm să încerci din nou.",
+        "Processing payment...": "Se procesează plata...",
+        "PAY NOW →": "PLĂTEȘTE ACUM →",
 
         # error.html
         "Something went wrong": "Ceva nu a mers bine",

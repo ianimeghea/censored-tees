@@ -33,7 +33,7 @@ class PrintifyClient:
     def _request(self, method, path, **kwargs):
         url = f"{API_BASE}{path}"
         try:
-            response = requests.request(method, url, headers=self._headers(), timeout=20, **kwargs)
+            response = requests.request(method, url, headers=self._headers(), timeout=10, **kwargs)
         except requests.RequestException as exc:
             raise PrintifyError(f"Network error contacting Printify: {exc}") from exc
 

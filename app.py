@@ -8,6 +8,9 @@ from functools import wraps
 
 import requests as http_requests
 from dotenv import load_dotenv
+
+load_dotenv()
+
 from flask import (
     Flask,
     Response,
@@ -26,14 +29,12 @@ import storage
 from printify_client import PrintifyClient, PrintifyError
 from translations import TRANSLATIONS
 
-load_dotenv()
-
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-key-change-me")
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-if not app.debug and os.environ.get("FLASK_ENV") != "development":
+if os.environ.get("APP_BASE_URL", "").startswith("https"):
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
@@ -70,28 +71,38 @@ def paypal_configured():
 
 
 def _paypal_access_token():
-    resp = http_requests.post(
-        f"{PAYPAL_BASE}/v1/oauth2/token",
-        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
-        data={"grant_type": "client_credentials"},
-        headers={"Accept": "application/json"},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    return resp.json()["access_token"]
+    try:
+        resp = http_requests.post(
+            f"{PAYPAL_BASE}/v1/oauth2/token",
+            auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
+            data={"grant_type": "client_credentials"},
+            headers={"Accept": "application/json"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()["access_token"]
+    except Exception as exc:
+        app.logger.error("PayPal auth failed: %s", exc)
+        return None
 
 
 def _paypal_headers():
+    token = _paypal_access_token()
+    if not token:
+        return None
     return {
-        "Authorization": f"Bearer {_paypal_access_token()}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
 
 def _paypal_create_order(purchase_units):
+    headers = _paypal_headers()
+    if not headers:
+        return None
     resp = http_requests.post(
         f"{PAYPAL_BASE}/v2/checkout/orders",
-        headers=_paypal_headers(),
+        headers=headers,
         json={"intent": "CAPTURE", "purchase_units": purchase_units},
         timeout=20,
     )
@@ -102,9 +113,12 @@ def _paypal_create_order(purchase_units):
 
 
 def _paypal_capture_order(order_id):
+    headers = _paypal_headers()
+    if not headers:
+        return None
     resp = http_requests.post(
         f"{PAYPAL_BASE}/v2/checkout/orders/{order_id}/capture",
-        headers=_paypal_headers(),
+        headers=headers,
         json={},
         timeout=20,
     )
@@ -418,7 +432,7 @@ def address_from_json(data):
     }
 
 
-@app.route("/checkout")
+@app.route("/checkout", methods=["GET", "POST"])
 def checkout():
     items, subtotal = cart_summary()
     if not items:
@@ -431,29 +445,89 @@ def checkout():
             message="Payments aren't configured yet. Add your PayPal keys to .env and restart.",
         ), 503
 
+    shipping_cost = None
+    form = {}
+
+    if request.method == "POST":
+        form = request.form
+        try:
+            address = {
+                "first_name": form["first_name"].strip(),
+                "last_name": form["last_name"].strip(),
+                "email": form["email"].strip(),
+                "phone": form.get("phone", "").strip(),
+                "country": form["country"].strip().upper(),
+                "region": form.get("region", "").strip(),
+                "address1": form["address1"].strip(),
+                "address2": form.get("address2", "").strip(),
+                "city": form["city"].strip(),
+                "zip": form["zip"].strip(),
+            }
+        except KeyError as exc:
+            flash(f"Missing field: {exc.args[0]}", "error")
+            return redirect(url_for("checkout"))
+
+        line_items = [
+            {
+                "product_id": entry["product"]["id"],
+                "variant_id": entry["variant"]["id"],
+                "quantity": entry["quantity"],
+            }
+            for entry in items
+        ]
+
+        try:
+            shipping = client.calculate_shipping(line_items, address)
+        except PrintifyError as exc:
+            flash(f"Shipping calculation failed: {exc}", "error")
+            return render_template(
+                "checkout.html",
+                items=items,
+                subtotal=subtotal,
+                form=form,
+                shipping=None,
+                paypal_client_id=PAYPAL_CLIENT_ID,
+            )
+
+        shipping_cost = shipping.get("standard", 0)
+        session["_checkout_address"] = address
+        session["_checkout_shipping"] = shipping_cost
+        session.modified = True
+
     return render_template(
         "checkout.html",
         items=items,
         subtotal=subtotal,
+        form=form,
+        shipping=shipping_cost,
         paypal_client_id=PAYPAL_CLIENT_ID,
     )
 
 
 @app.route("/api/paypal/create-order", methods=["POST"])
 def paypal_create_order():
+    try:
+        return _do_create_order()
+    except Exception as exc:
+        app.logger.exception("create-order crashed")
+        return jsonify({"error": str(exc)}), 500
+
+
+def _do_create_order():
     if not paypal_configured():
         return jsonify({"error": "Payments not configured"}), 503
+
+    address = session.get("_checkout_address")
+    if not address:
+        return jsonify({"error": "Please fill in your shipping address first."}), 400
+
+    shipping_cost = session.get("_checkout_shipping")
+    if shipping_cost is None:
+        return jsonify({"error": "Shipping not calculated. Go back and submit your address."}), 400
 
     items, subtotal = cart_summary()
     if not items:
         return jsonify({"error": "Cart is empty"}), 400
-
-    data = request.get_json(silent=True) or {}
-    address = address_from_json(data)
-    required = ["first_name", "last_name", "email", "address1", "city", "zip", "country"]
-    missing = [f for f in required if not address.get(f)]
-    if missing:
-        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
     line_items = [
         {
@@ -463,13 +537,6 @@ def paypal_create_order():
         }
         for entry in items
     ]
-
-    try:
-        shipping = client.calculate_shipping(line_items, address)
-    except PrintifyError as exc:
-        return jsonify({"error": f"Shipping calculation failed: {exc}"}), 400
-
-    shipping_cost = shipping.get("standard", 0)
 
     paypal_items = []
     for entry in items:
@@ -515,7 +582,7 @@ def paypal_create_order():
 
     pp_order = _paypal_create_order(purchase_units)
     if not pp_order:
-        return jsonify({"error": "Failed to create PayPal order"}), 502
+        return jsonify({"error": "Failed to create PayPal order. Check your PayPal credentials."}), 502
 
     paypal_order_id = pp_order["id"]
 
@@ -572,17 +639,6 @@ def finalize_order(payment_id):
         if existing and existing["status"] == "submitted" and existing["printify_order_id"]:
             return ({"id": existing["printify_order_id"]}, "submitted")
         return (None, (existing or {}).get("status", "missing"))
-
-    if PAYPAL_SANDBOX:
-        storage.mark_failed(
-            payment_id,
-            "Skipped fulfillment: PayPal sandbox mode is active. Switch to live keys to send real orders.",
-        )
-        app.logger.warning(
-            "Skipping Printify submission for %s — PayPal in sandbox mode.",
-            payment_id,
-        )
-        return (None, "test-mode-skipped")
 
     try:
         order = client.submit_order(payload)
