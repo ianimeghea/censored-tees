@@ -11,10 +11,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.5
-      # SQLite lives in /tmp on free plan (no persistent disk).
-      # Order log resets on restart/deploy. Stripe Dashboard is source of truth for payments.
-      - key: DB_PATH
-        value: /tmp/store.db
+      - key: DATABASE_URL
+        sync: false
       - key: FLASK_SECRET_KEY
         generateValue: true
       - key: PRINTIFY_API_TOKEN
@@ -23,12 +21,12 @@ services:
         sync: false
       - key: PRINTIFY_USER_AGENT
         value: CensoredTees
-      - key: STRIPE_SECRET_KEY
+      - key: PAYPAL_CLIENT_ID
         sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
+      - key: PAYPAL_SECRET
         sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
+      - key: PAYPAL_SANDBOX
+        value: "false"
       - key: APP_BASE_URL
         sync: false
       - key: ADMIN_USER

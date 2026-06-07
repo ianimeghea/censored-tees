@@ -4,53 +4,54 @@
 <h1 class="page-title">{{ _("CHECKOUT") }}</h1>
 
 <div class="checkout-grid">
-    <form method="post" class="checkout-form">
+    <div class="checkout-form">
         <h2>{{ _("SHIPPING ADDRESS") }}</h2>
 
         <div class="row">
             <label>{{ _("First name") }}
-                <input type="text" name="first_name" value="{{ form.get('first_name', '') }}" required>
+                <input type="text" id="first_name" required>
             </label>
             <label>{{ _("Last name") }}
-                <input type="text" name="last_name" value="{{ form.get('last_name', '') }}" required>
+                <input type="text" id="last_name" required>
             </label>
         </div>
 
         <label>{{ _("Email") }}
-            <input type="email" name="email" value="{{ form.get('email', '') }}" required>
+            <input type="email" id="email" required>
         </label>
         <label>{{ _("Phone") }}
-            <input type="tel" name="phone" value="{{ form.get('phone', '') }}">
+            <input type="tel" id="phone">
         </label>
 
         <label>{{ _("Address") }}
-            <input type="text" name="address1" value="{{ form.get('address1', '') }}" required>
+            <input type="text" id="address1" required>
         </label>
         <label>{{ _("Apartment, suite, etc. (optional)") }}
-            <input type="text" name="address2" value="{{ form.get('address2', '') }}">
+            <input type="text" id="address2">
         </label>
 
         <div class="row">
             <label>{{ _("City") }}
-                <input type="text" name="city" value="{{ form.get('city', '') }}" required>
+                <input type="text" id="city" required>
             </label>
             <label>{{ _("State / Region") }}
-                <input type="text" name="region" value="{{ form.get('region', '') }}">
+                <input type="text" id="region">
             </label>
         </div>
 
         <div class="row">
             <label>{{ _("ZIP / Postal code") }}
-                <input type="text" name="zip" value="{{ form.get('zip', '') }}" required>
+                <input type="text" id="zip" required>
             </label>
             <label>{{ _("Country (ISO code)") }}
-                <input type="text" name="country" value="{{ form.get('country', 'US') }}" maxlength="2" required>
+                <input type="text" id="country" value="US" maxlength="2" required>
             </label>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block">{{ _("CONTINUE TO PAYMENT →") }}</button>
+        <div id="paypal-error" class="flash flash-error" style="display:none;"></div>
+        <div id="paypal-button-container"></div>
         <p class="muted small">{{ _("Secure checkout. You'll receive a tracking email once your order ships.") }}</p>
-    </form>
+    </div>
 
     <aside class="summary">
         <h2>{{ _("YOUR ORDER") }}</h2>
@@ -65,18 +66,88 @@
             <span>{{ _("Subtotal") }}</span>
             <span>${{ subtotal | money }}</span>
         </div>
-        {% if shipping is not none %}
-            <div class="summary-row">
-                <span>{{ _("Shipping") }}</span>
-                <span>${{ shipping | money }}</span>
-            </div>
-            <div class="summary-row total">
-                <span>{{ _("Total") }}</span>
-                <span>${{ (subtotal + shipping) | money }}</span>
-            </div>
-        {% else %}
-            <p class="muted small">{{ _("Shipping calculated on the next step.") }}</p>
-        {% endif %}
+        <p class="muted small">{{ _("Shipping calculated on the next step.") }}</p>
     </aside>
 </div>
+
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD&disable-funding=paylater"></script>
+<script>
+(function () {
+    var errorEl = document.getElementById('paypal-error');
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+    }
+
+    function hideError() {
+        errorEl.style.display = 'none';
+    }
+
+    function getAddress() {
+        var fields = ['first_name', 'last_name', 'email', 'address1', 'city', 'zip', 'country'];
+        var data = {};
+        var ids = ['first_name', 'last_name', 'email', 'phone', 'address1', 'address2', 'city', 'region', 'zip', 'country'];
+        for (var i = 0; i < ids.length; i++) {
+            data[ids[i]] = (document.getElementById(ids[i]).value || '').trim();
+        }
+        for (var j = 0; j < fields.length; j++) {
+            if (!data[fields[j]]) {
+                return null;
+            }
+        }
+        return data;
+    }
+
+    paypal.Buttons({
+        style: {
+            layout: 'vertical',
+            color: 'black',
+            shape: 'rect',
+            label: 'pay',
+            height: 50,
+        },
+        createOrder: function () {
+            hideError();
+            var address = getAddress();
+            if (!address) {
+                showError('{{ _("Please fill in all required fields.") }}');
+                return Promise.reject(new Error('validation'));
+            }
+            return fetch('/api/paypal/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(address),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.error) {
+                    showError(data.error);
+                    return Promise.reject(new Error(data.error));
+                }
+                return data.id;
+            });
+        },
+        onApprove: function (data) {
+            return fetch('/api/paypal/capture-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_id: data.orderID }),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (result) {
+                if (result.error) {
+                    showError(result.error);
+                    return;
+                }
+                window.location.href = result.redirect;
+            });
+        },
+        onError: function (err) {
+            if (err && err.message === 'validation') return;
+            showError('{{ _("Something went wrong with the payment. Please try again.") }}');
+        },
+    }).render('#paypal-button-container');
+})();
+</script>
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}ADMIN — ORDER {{ row.stripe_session_id[:14] }}{% endblock %}
+{% block title %}ADMIN — ORDER {{ row.payment_id[:14] }}{% endblock %}
 {% block content %}
 <a class="back-link" href="{{ url_for('admin_orders') }}">← BACK TO LOG</a>
 
@@ -10,7 +10,7 @@
         <h2>STATUS</h2>
         <div class="kv">
             <div class="kv-row"><span>Status</span><span class="status-pill status-{{ row.status }}">{{ row.status | upper }}</span></div>
-            <div class="kv-row"><span>Stripe session</span><span class="mono small">{{ row.stripe_session_id }}</span></div>
+            <div class="kv-row"><span>Payment ID</span><span class="mono small">{{ row.payment_id }}</span></div>
             <div class="kv-row"><span>Fulfillment order ID</span><span class="mono small">{{ row.printify_order_id or '—' }}</span></div>
             <div class="kv-row"><span>External ID</span><span class="mono small">{{ payload.external_id or '—' }}</span></div>
             <div class="kv-row"><span>Label</span><span class="mono">{{ payload.label or '—' }}</span></div>
@@ -25,7 +25,7 @@
         </div>
 
         {% if row.status in ('failed', 'submitting') %}
-            <form action="{{ url_for('admin_order_retry', stripe_session_id=row.stripe_session_id) }}" method="post" class="retry-form">
+            <form action="{{ url_for('admin_order_retry', payment_id=row.payment_id) }}" method="post" class="retry-form">
                 <button type="submit" class="btn btn-primary">RETRY SUBMISSION</button>
                 <p class="muted small">This re-runs the fulfillment submission. Safe to retry — duplicates are prevented.</p>
             </form>

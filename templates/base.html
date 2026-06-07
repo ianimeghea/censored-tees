@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-{% if stripe_test_mode %}
-<div class="test-banner">{{ _("TEST MODE — payments use Stripe test cards. No real orders will be fulfilled.") }}</div>
+{% if paypal_sandbox %}
+<div class="test-banner">{{ _("TEST MODE — payments use PayPal sandbox. No real orders will be fulfilled.") }}</div>
 {% endif %}
 <div class="marquee" aria-hidden="true">
     <div class="marquee-track">

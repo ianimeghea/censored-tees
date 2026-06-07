@@ -40,7 +40,7 @@
                 <td class="mono">{{ o.item_count }}</td>
                 <td><span class="status-pill status-{{ o.status }}">{{ o.status | upper }}</span></td>
                 <td class="mono small">{{ o.printify_order_id or '—' }}</td>
-                <td><a class="btn-link" href="{{ url_for('admin_order_detail', stripe_session_id=o.stripe_session_id) }}">VIEW →</a></td>
+                <td><a class="btn-link" href="{{ url_for('admin_order_detail', payment_id=o.payment_id) }}">VIEW →</a></td>
             </tr>
             {% endfor %}
         </tbody>

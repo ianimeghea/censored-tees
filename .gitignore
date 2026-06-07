@@ -5,7 +5,3 @@ __pycache__/
 venv/
 .idea/
 .DS_Store
-store.db
-store.db-journal
-store.db-wal
-store.db-shm

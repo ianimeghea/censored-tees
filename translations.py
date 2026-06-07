@@ -10,8 +10,8 @@ TRANSLATIONS = {
         "CART": "COȘ",
         "Speak loud. Wear louder.": "Vorbește tare. Poartă și mai tare.",
         "All rights reserved.": "Toate drepturile rezervate.",
-        "TEST MODE — payments use Stripe test cards. No real orders will be fulfilled.":
-            "MOD TEST — plățile folosesc carduri de test Stripe. Nu se vor onora comenzi reale.",
+        "TEST MODE — payments use PayPal sandbox. No real orders will be fulfilled.":
+            "MOD TEST — plățile folosesc PayPal sandbox. Nu se vor onora comenzi reale.",
 
         # index.html
         "tees for the unfiltered.": "tricouri pentru cei fără filtru.",
@@ -84,6 +84,11 @@ TRANSLATIONS = {
         "Order #": "Comanda #",
         "Keep shopping": "Continuă cumpărăturile",
 
+        # checkout.html — JS
+        "Please fill in all required fields.": "Te rugăm să completezi toate câmpurile obligatorii.",
+        "Something went wrong with the payment. Please try again.":
+            "Ceva nu a mers bine cu plata. Te rugăm să încerci din nou.",
+
         # error.html
         "Something went wrong": "Ceva nu a mers bine",
         "Try again": "Încearcă din nou",
@@ -94,7 +99,5 @@ TRANSLATIONS = {
         "Your cart is empty.": "Coșul tău este gol.",
         "Standard shipping": "Livrare standard",
         "Couldn't verify your payment.": "Nu am putut verifica plata.",
-        "Payment is still processing. You'll get an email once it's confirmed.":
-            "Plata este încă în procesare. Vei primi un email când este confirmată.",
     }
 }

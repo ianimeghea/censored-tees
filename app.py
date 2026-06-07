@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import wraps
 
-import stripe
+import requests as http_requests
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -31,11 +31,8 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-key-change-me")
 
-# Render terminates TLS at its load balancer and forwards via X-Forwarded-Proto.
-# This makes url_for() generate https URLs and request.is_secure work correctly.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-# Tighten session cookies in production (when not in Flask debug mode).
 if not app.debug and os.environ.get("FLASK_ENV") != "development":
     app.config.update(
         SESSION_COOKIE_SECURE=True,
@@ -45,10 +42,11 @@ if not app.debug and os.environ.get("FLASK_ENV") != "development":
 
 client = PrintifyClient()
 
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_IS_TEST_MODE = stripe.api_key.startswith("sk_test_")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
+PAYPAL_SECRET = os.environ.get("PAYPAL_SECRET", "")
+PAYPAL_SANDBOX = os.environ.get("PAYPAL_SANDBOX", "true").lower() in ("1", "true", "yes")
+PAYPAL_BASE = "https://api-m.sandbox.paypal.com" if PAYPAL_SANDBOX else "https://api-m.paypal.com"
+
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
 ADMIN_USER = os.environ.get("ADMIN_USER", "")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
@@ -65,9 +63,63 @@ PRODUCTS_INT_ONLY = _parse_id_list(os.environ.get("PRODUCTS_INT_ONLY", ""))
 storage.init_db()
 
 
-def stripe_configured():
-    return bool(stripe.api_key and stripe.api_key.startswith("sk_"))
+# ── PayPal helpers ──────────────────────────────────────────────────────────
 
+def paypal_configured():
+    return bool(PAYPAL_CLIENT_ID and PAYPAL_SECRET)
+
+
+def _paypal_access_token():
+    resp = http_requests.post(
+        f"{PAYPAL_BASE}/v1/oauth2/token",
+        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
+        data={"grant_type": "client_credentials"},
+        headers={"Accept": "application/json"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return resp.json()["access_token"]
+
+
+def _paypal_headers():
+    return {
+        "Authorization": f"Bearer {_paypal_access_token()}",
+        "Content-Type": "application/json",
+    }
+
+
+def _paypal_create_order(purchase_units):
+    resp = http_requests.post(
+        f"{PAYPAL_BASE}/v2/checkout/orders",
+        headers=_paypal_headers(),
+        json={"intent": "CAPTURE", "purchase_units": purchase_units},
+        timeout=20,
+    )
+    if not resp.ok:
+        app.logger.error("PayPal create order failed: %s %s", resp.status_code, resp.text)
+        return None
+    return resp.json()
+
+
+def _paypal_capture_order(order_id):
+    resp = http_requests.post(
+        f"{PAYPAL_BASE}/v2/checkout/orders/{order_id}/capture",
+        headers=_paypal_headers(),
+        json={},
+        timeout=20,
+    )
+    if not resp.ok:
+        app.logger.error("PayPal capture failed: %s %s", resp.status_code, resp.text)
+        return None
+    return resp.json()
+
+
+def _cents_to_paypal(cents):
+    """Convert integer cents (e.g. 1988) to PayPal dollar string (e.g. '19.88')."""
+    return f"{Decimal(cents) / Decimal(100):.2f}"
+
+
+# ── Auth & utils ────────────────────────────────────────────────────────────
 
 def _check_admin_auth(auth):
     if not ADMIN_USER or not ADMIN_PASSWORD:
@@ -136,8 +188,8 @@ def product_visible_for_region(product):
     """Check if a product should be shown for the current region.
 
     Configure via env vars (comma-separated Printify product IDs):
-      PRODUCTS_RO_ONLY  → only shown to Romanian visitors
-      PRODUCTS_INT_ONLY → only shown to international visitors
+      PRODUCTS_RO_ONLY  -> only shown to Romanian visitors
+      PRODUCTS_INT_ONLY -> only shown to international visitors
     Products in neither list are shown to everyone.
     """
     pid = str(product.get("id", ""))
@@ -221,7 +273,7 @@ def inject_globals():
         "cart_count": sum(item.get("quantity", 0) for item in cart()),
         "shop_configured": client.is_configured,
         "now_year": datetime.utcnow().year,
-        "stripe_test_mode": STRIPE_IS_TEST_MODE,
+        "paypal_sandbox": PAYPAL_SANDBOX,
         "lang": get_lang(),
     }
 
@@ -351,234 +403,229 @@ def cart_view():
     return render_template("cart.html", items=items, subtotal=subtotal)
 
 
-def address_from_form(form):
+def address_from_json(data):
     return {
-        "first_name": form["first_name"].strip(),
-        "last_name": form["last_name"].strip(),
-        "email": form["email"].strip(),
-        "phone": form.get("phone", "").strip(),
-        "country": form["country"].strip().upper(),
-        "region": form.get("region", "").strip(),
-        "address1": form["address1"].strip(),
-        "address2": form.get("address2", "").strip(),
-        "city": form["city"].strip(),
-        "zip": form["zip"].strip(),
+        "first_name": (data.get("first_name") or "").strip(),
+        "last_name": (data.get("last_name") or "").strip(),
+        "email": (data.get("email") or "").strip(),
+        "phone": (data.get("phone") or "").strip(),
+        "country": (data.get("country") or "").strip().upper(),
+        "region": (data.get("region") or "").strip(),
+        "address1": (data.get("address1") or "").strip(),
+        "address2": (data.get("address2") or "").strip(),
+        "city": (data.get("city") or "").strip(),
+        "zip": (data.get("zip") or "").strip(),
     }
 
 
-@app.route("/checkout", methods=["GET", "POST"])
+@app.route("/checkout")
 def checkout():
     items, subtotal = cart_summary()
     if not items:
         flash("Your cart is empty.", "error")
         return redirect(url_for("index"))
 
-    if not stripe_configured():
+    if not paypal_configured():
         return render_template(
             "error.html",
-            message="Payments aren't configured yet. Add your Stripe keys to .env and restart.",
+            message="Payments aren't configured yet. Add your PayPal keys to .env and restart.",
         ), 503
-
-    if request.method == "POST":
-        try:
-            address = address_from_form(request.form)
-        except KeyError as exc:
-            flash(f"Missing field: {exc.args[0]}", "error")
-            return redirect(url_for("checkout"))
-
-        line_items = [
-            {
-                "product_id": entry["product"]["id"],
-                "variant_id": entry["variant"]["id"],
-                "quantity": entry["quantity"],
-            }
-            for entry in items
-        ]
-
-        try:
-            shipping = client.calculate_shipping(line_items, address)
-        except PrintifyError as exc:
-            flash(f"Shipping calculation failed: {exc}", "error")
-            return render_template(
-                "checkout.html",
-                items=items,
-                subtotal=subtotal,
-                form=request.form,
-                shipping=None,
-            )
-
-        shipping_cost = shipping.get("standard", 0)
-
-        stripe_line_items = [
-            {
-                "price_data": {
-                    "currency": "usd",
-                    "unit_amount": entry["variant"]["price"],
-                    "product_data": {
-                        "name": entry["product"]["title"],
-                        "description": entry["variant"]["title"][:500],
-                        "images": [entry["image"]] if entry["image"] else [],
-                    },
-                },
-                "quantity": entry["quantity"],
-            }
-            for entry in items
-        ]
-
-        order_payload = {
-            "external_id": uuid.uuid4().hex,
-            "label": f"WEB-{uuid.uuid4().hex[:8].upper()}",
-            "line_items": line_items,
-            "shipping_method": 1,
-            "send_shipping_notification": True,
-            "address_to": address,
-        }
-
-        try:
-            checkout_session = stripe.checkout.Session.create(
-                mode="payment",
-                line_items=stripe_line_items,
-                customer_email=address["email"],
-                shipping_options=[{
-                    "shipping_rate_data": {
-                        "type": "fixed_amount",
-                        "fixed_amount": {"amount": shipping_cost, "currency": "usd"},
-                        "display_name": "Standard shipping",
-                    },
-                }],
-                success_url=f"{APP_BASE_URL}/order/success?session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=f"{APP_BASE_URL}/checkout",
-                metadata={
-                    "order_external_id": order_payload["external_id"],
-                },
-                payment_intent_data={
-                    "metadata": {
-                        "order_external_id": order_payload["external_id"],
-                    },
-                },
-            )
-        except stripe.error.StripeError as exc:
-            flash(f"Payment setup failed: {exc.user_message or str(exc)}", "error")
-            return render_template(
-                "checkout.html",
-                items=items,
-                subtotal=subtotal,
-                form=request.form,
-                shipping=shipping_cost,
-            )
-
-        # Persist the Printify order so the success route OR the webhook can finalize it.
-        # Whichever fires first claims it; the other call becomes a no-op.
-        storage.save_pending(checkout_session.id, order_payload)
-        save_cart([])
-        return redirect(checkout_session.url, code=303)
 
     return render_template(
         "checkout.html",
         items=items,
         subtotal=subtotal,
-        form={},
-        shipping=None,
+        paypal_client_id=PAYPAL_CLIENT_ID,
     )
 
 
-def finalize_order(stripe_session_id):
-    """Submit the pending Printify order for this Stripe session, idempotently.
+@app.route("/api/paypal/create-order", methods=["POST"])
+def paypal_create_order():
+    if not paypal_configured():
+        return jsonify({"error": "Payments not configured"}), 503
+
+    items, subtotal = cart_summary()
+    if not items:
+        return jsonify({"error": "Cart is empty"}), 400
+
+    data = request.get_json(silent=True) or {}
+    address = address_from_json(data)
+    required = ["first_name", "last_name", "email", "address1", "city", "zip", "country"]
+    missing = [f for f in required if not address.get(f)]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    line_items = [
+        {
+            "product_id": entry["product"]["id"],
+            "variant_id": entry["variant"]["id"],
+            "quantity": entry["quantity"],
+        }
+        for entry in items
+    ]
+
+    try:
+        shipping = client.calculate_shipping(line_items, address)
+    except PrintifyError as exc:
+        return jsonify({"error": f"Shipping calculation failed: {exc}"}), 400
+
+    shipping_cost = shipping.get("standard", 0)
+
+    paypal_items = []
+    for entry in items:
+        paypal_items.append({
+            "name": entry["product"]["title"][:127],
+            "description": entry["variant"]["title"][:127],
+            "quantity": str(entry["quantity"]),
+            "unit_amount": {
+                "currency_code": "USD",
+                "value": _cents_to_paypal(entry["variant"]["price"]),
+            },
+        })
+
+    total_cents = subtotal + shipping_cost
+    purchase_units = [{
+        "amount": {
+            "currency_code": "USD",
+            "value": _cents_to_paypal(total_cents),
+            "breakdown": {
+                "item_total": {
+                    "currency_code": "USD",
+                    "value": _cents_to_paypal(subtotal),
+                },
+                "shipping": {
+                    "currency_code": "USD",
+                    "value": _cents_to_paypal(shipping_cost),
+                },
+            },
+        },
+        "items": paypal_items,
+        "shipping": {
+            "name": {"full_name": f"{address['first_name']} {address['last_name']}"},
+            "address": {
+                "address_line_1": address["address1"],
+                "address_line_2": address.get("address2") or "",
+                "admin_area_2": address["city"],
+                "admin_area_1": address.get("region") or "",
+                "postal_code": address["zip"],
+                "country_code": address["country"],
+            },
+        },
+    }]
+
+    pp_order = _paypal_create_order(purchase_units)
+    if not pp_order:
+        return jsonify({"error": "Failed to create PayPal order"}), 502
+
+    paypal_order_id = pp_order["id"]
+
+    order_payload = {
+        "external_id": uuid.uuid4().hex,
+        "label": f"WEB-{uuid.uuid4().hex[:8].upper()}",
+        "line_items": line_items,
+        "shipping_method": 1,
+        "send_shipping_notification": True,
+        "address_to": address,
+    }
+
+    storage.save_pending(paypal_order_id, order_payload)
+
+    session["_order_amounts"] = {
+        "subtotal": subtotal,
+        "shipping": shipping_cost,
+    }
+    session.modified = True
+
+    return jsonify({"id": paypal_order_id})
+
+
+@app.route("/api/paypal/capture-order", methods=["POST"])
+def paypal_capture_order_route():
+    data = request.get_json(silent=True) or {}
+    order_id = data.get("order_id")
+    if not order_id:
+        return jsonify({"error": "Missing order_id"}), 400
+
+    result = _paypal_capture_order(order_id)
+    if not result:
+        return jsonify({"error": "Payment capture failed"}), 502
+
+    status = result.get("status")
+    if status != "COMPLETED":
+        return jsonify({"error": f"Payment not completed (status: {status})"}), 400
+
+    printify_order, fulfillment_status = finalize_order(order_id)
+    save_cart([])
+
+    return jsonify({
+        "status": "ok",
+        "redirect": url_for("order_success", payment_id=order_id),
+    })
+
+
+def finalize_order(payment_id):
+    """Submit the pending Printify order, idempotently.
     Returns (printify_order_dict_or_None, status_string)."""
-    payload = storage.claim_order(stripe_session_id)
+    payload = storage.claim_order(payment_id)
     if payload is None:
-        # Either nothing pending (already submitted), or another worker claimed it.
-        existing = storage.get_order(stripe_session_id)
+        existing = storage.get_order(payment_id)
         if existing and existing["status"] == "submitted" and existing["printify_order_id"]:
             return ({"id": existing["printify_order_id"]}, "submitted")
         return (None, (existing or {}).get("status", "missing"))
 
-    # Safety: never submit real fulfillment orders when Stripe is in test mode.
-    # Otherwise anyone with a test card (e.g. 4242 4242 4242 4242) could trigger
-    # a real Printify order that bills the store owner.
-    if STRIPE_IS_TEST_MODE:
+    if PAYPAL_SANDBOX:
         storage.mark_failed(
-            stripe_session_id,
-            "Skipped fulfillment: Stripe test mode is active. Switch to live keys to send real orders.",
+            payment_id,
+            "Skipped fulfillment: PayPal sandbox mode is active. Switch to live keys to send real orders.",
         )
         app.logger.warning(
-            "Skipping Printify submission for %s — Stripe in test mode.",
-            stripe_session_id,
+            "Skipping Printify submission for %s — PayPal in sandbox mode.",
+            payment_id,
         )
         return (None, "test-mode-skipped")
 
     try:
         order = client.submit_order(payload)
     except PrintifyError as exc:
-        storage.mark_failed(stripe_session_id, str(exc))
-        app.logger.error("Printify order submission failed for %s: %s", stripe_session_id, exc)
+        storage.mark_failed(payment_id, str(exc))
+        app.logger.error("Printify order submission failed for %s: %s", payment_id, exc)
         return (None, "failed")
-    except Exception as exc:
-        # Don't leave it stuck in 'submitting' — let webhook retries pick it up.
-        storage.reset_to_pending(stripe_session_id)
-        app.logger.exception("Unexpected error submitting order %s", stripe_session_id)
+    except Exception:
+        storage.reset_to_pending(payment_id)
+        app.logger.exception("Unexpected error submitting order %s", payment_id)
         raise
 
     printify_id = (order or {}).get("id") or "unknown"
-    storage.mark_submitted(stripe_session_id, printify_id)
+    storage.mark_submitted(payment_id, printify_id)
     return (order, "submitted")
 
 
 @app.route("/order/success")
 def order_success():
-    session_id = request.args.get("session_id")
-    if not session_id:
+    payment_id = request.args.get("payment_id")
+    if not payment_id:
         return redirect(url_for("index"))
 
-    try:
-        checkout_session = stripe.checkout.Session.retrieve(session_id)
-    except stripe.error.StripeError:
+    order_row = storage.get_order(payment_id)
+    if not order_row:
         flash("Couldn't verify your payment.", "error")
         return redirect(url_for("index"))
 
-    if checkout_session.payment_status != "paid":
-        flash("Payment is still processing. You'll get an email once it's confirmed.", "success")
-        save_cart([])
-        return redirect(url_for("index"))
-
-    printify_order, status = finalize_order(session_id)
+    amounts = session.pop("_order_amounts", {})
+    subtotal = amounts.get("subtotal", 0)
+    shipping_cost = amounts.get("shipping", 0)
     save_cart([])
+
+    printify_order_id = order_row.get("printify_order_id")
+    order_obj = {"id": printify_order_id} if printify_order_id else {"id": payment_id}
 
     return render_template(
         "order_confirmation.html",
-        order=printify_order or {"id": session_id},
-        subtotal=(checkout_session.amount_subtotal or 0),
-        shipping_cost=(checkout_session.shipping_cost.amount_total if checkout_session.shipping_cost else 0),
-        fulfillment_status=status,
+        order=order_obj,
+        subtotal=subtotal,
+        shipping_cost=shipping_cost,
+        fulfillment_status=order_row["status"],
     )
-
-
-@app.route("/stripe/webhook", methods=["POST"])
-def stripe_webhook():
-    if not STRIPE_WEBHOOK_SECRET:
-        app.logger.warning("Webhook hit but STRIPE_WEBHOOK_SECRET not configured.")
-        return ("Webhook secret not configured", 503)
-
-    payload = request.data
-    sig_header = request.headers.get("Stripe-Signature", "")
-
-    try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    except (ValueError, stripe.error.SignatureVerificationError):
-        return ("Invalid signature", 400)
-
-    if event["type"] == "checkout.session.completed":
-        session_obj = event["data"]["object"]
-        if session_obj.get("payment_status") == "paid":
-            session_id = session_obj["id"]
-            try:
-                _, status = finalize_order(session_id)
-                app.logger.info("Webhook finalized order %s: %s", session_id, status)
-            except Exception:
-                # Return 500 so Stripe will retry the webhook.
-                return ("Order submission error", 500)
-
-    return jsonify({"received": True})
 
 
 @app.route("/api/shipping", methods=["POST"])
@@ -617,7 +664,7 @@ def admin_orders():
         line_items = payload.get("line_items") or []
         addr = payload.get("address_to") or {}
         orders.append({
-            "stripe_session_id": row["stripe_session_id"],
+            "payment_id": row["payment_id"],
             "status": row["status"],
             "printify_order_id": row["printify_order_id"],
             "error": row["error"],
@@ -636,10 +683,10 @@ def admin_orders():
     return render_template("admin_orders.html", orders=orders, totals=totals)
 
 
-@app.route("/admin/orders/<stripe_session_id>")
+@app.route("/admin/orders/<payment_id>")
 @admin_required
-def admin_order_detail(stripe_session_id):
-    row = storage.get_order(stripe_session_id)
+def admin_order_detail(payment_id):
+    row = storage.get_order(payment_id)
     if not row:
         abort(404)
     try:
@@ -654,20 +701,20 @@ def admin_order_detail(stripe_session_id):
     )
 
 
-@app.route("/admin/orders/<stripe_session_id>/retry", methods=["POST"])
+@app.route("/admin/orders/<payment_id>/retry", methods=["POST"])
 @admin_required
-def admin_order_retry(stripe_session_id):
-    row = storage.get_order(stripe_session_id)
+def admin_order_retry(payment_id):
+    row = storage.get_order(payment_id)
     if not row:
         abort(404)
     if row["status"] not in ("failed", "submitting"):
         flash("Only failed or stuck orders can be retried.", "error")
-        return redirect(url_for("admin_order_detail", stripe_session_id=stripe_session_id))
+        return redirect(url_for("admin_order_detail", payment_id=payment_id))
 
-    storage.force_reset_to_pending(stripe_session_id)
-    _, status = finalize_order(stripe_session_id)
+    storage.force_reset_to_pending(payment_id)
+    _, status = finalize_order(payment_id)
     flash(f"Retry result: {status}", "success" if status == "submitted" else "error")
-    return redirect(url_for("admin_order_detail", stripe_session_id=stripe_session_id))
+    return redirect(url_for("admin_order_detail", payment_id=payment_id))
 
 
 if __name__ == "__main__":
